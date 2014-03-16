@@ -15,11 +15,11 @@ SNMPMonitor::SNMPMonitor(QWidget *parent) :
     ui->setupUi(this);
     this->setWindowTitle(QObject::tr("SNMP Monitor"));
     ui->treeWidget->setColumnCount(2);
-    ui->lineEdit->setText("localhost");
+    ui->lineEdit->setText("192.168.1.1");
     ui->lineEdit_2->setText("public");
     ui->pushButton_2->setEnabled(false);
     ui->pushButton_3->setEnabled(false);
-    ifIndexMonitor = "";
+//    ifIndexMonitor = "";
 
     // create networkWidget
     networkWidget = new NetworkWidget(this,ui->lineEdit);
@@ -49,6 +49,9 @@ SNMPMonitor::SNMPMonitor(QWidget *parent) :
     configDialog->setLayout(layout);
     configDialog->move(x()+width(),y());
     configDialog->setWindowFlags( Qt::Dialog | Qt::WindowTitleHint);
+
+    snmp = new SNMPLib();
+    currentIfIndex = -1;
 }
 
 SNMPMonitor::~SNMPMonitor()
@@ -59,24 +62,24 @@ SNMPMonitor::~SNMPMonitor()
 void SNMPMonitor::on_pushButton_clicked()
 {
     isConnectError = false;
-    SNMPLib *snmp = new SNMPLib();
+//    SNMPLib *snmp = new SNMPLib();
     for (int i = ui->treeWidget->children().size()-1;i>=0;i--){
         ui->treeWidget->takeTopLevelItem(i);
     }
     if(snmp->init(ui->lineEdit->text(),ui->lineEdit_2->text()))
     {
-        getDeviceInfo(snmp,"sysDescr","1.3.6.1.2.1.1.1");
-        getDeviceInfo(snmp,"sysUptime","1.3.6.1.2.1.1.3");
-        getDeviceInfo(snmp,"sysName","1.3.6.1.2.1.1.4");
-        getDeviceInfo(snmp,"sysContact","1.3.6.1.2.1.1.5");
-        getDeviceInfo(snmp,"sysLocation","1.3.6.1.2.1.1.6");
-        getDeviceInfo(snmp,"ifNumber","1.3.6.1.2.1.2.1");
-        getListInterface(snmp,QString(ifTreeItem->text(1)).toInt());
-        snmp->closeSession();
+        getDeviceInfo("sysDescr","1.3.6.1.2.1.1.1");
+        getDeviceInfo("sysUptime","1.3.6.1.2.1.1.3");
+        getDeviceInfo("sysName","1.3.6.1.2.1.1.4");
+        getDeviceInfo("sysContact","1.3.6.1.2.1.1.5");
+        getDeviceInfo("sysLocation","1.3.6.1.2.1.1.6");
+        getDeviceInfo("ifNumber","1.3.6.1.2.1.2.1");
+        getListInterface(QString(ifTreeItem->text(1)).toInt());
+//        snmp->closeSession();
     }
 }
 
-void SNMPMonitor::getDeviceInfo(SNMPLib *snmp,QString title,QString oid)
+void SNMPMonitor::getDeviceInfo(QString title,QString oid)
 {
     QString v;
     QString oid2=oid.append(".0");
@@ -90,7 +93,7 @@ void SNMPMonitor::getDeviceInfo(SNMPLib *snmp,QString title,QString oid)
     else isConnectError = true;
 }
 
-void SNMPMonitor::getListInterface(SNMPLib *snmp,int ifNumber)
+void SNMPMonitor::getListInterface(int ifNumber)
 {
     QString v;
     for (int i=1;i<=ifNumber;i++)
@@ -102,6 +105,13 @@ void SNMPMonitor::getListInterface(SNMPLib *snmp,int ifNumber)
                 itm->setText(0,v);
                 itm->setText(1,QString::number(i));
                 ifTreeItem->addChild(itm);
+                getInterfaceInfo(itm,"Type","1.3.6.1.2.1.2.2.1.3.");
+                getInterfaceInfo(itm,"Speed","1.3.6.1.2.1.2.2.1.5.");
+                getInterfaceInfo(itm,"PhysicalAddress","1.3.6.1.2.1.2.2.1.6.");
+                getInterfaceInfo(itm,"AdminStatus","1.3.6.1.2.1.2.2.1.7.");
+                getInterfaceInfo(itm,"OperationStatus","1.3.6.1.2.1.2.2.1.8.");
+                getInterfaceInfo(itm,"InBytes","1.3.6.1.2.1.2.2.1.10.");
+                getInterfaceInfo(itm,"OutByte","1.3.6.1.2.1.2.2.1.16.");
             }
             else isConnectError = true;
         }
@@ -126,8 +136,12 @@ void SNMPMonitor::on_pushButton_2_clicked()
 {
     ui->pushButton_2->setEnabled(false);
     ui->pushButton_3->setEnabled(true);
-//    trafficThread->start();
 
+    if (trafficThread->isReset){
+        trafficThread->destroyed();
+        trafficThread = new TrafficThread(snmp,currentIfIndex);
+    }
+    trafficThread->start();
 }
 
 //stop
@@ -135,53 +149,14 @@ void SNMPMonitor::on_pushButton_3_clicked()
 {
     ui->pushButton_3->setEnabled(false);
     ui->pushButton_2->setEnabled(true);
-//    trafficThread->quit();
+    trafficThread->isPause = true;
 }
 
 void SNMPMonitor::on_treeWidget_itemDoubleClicked(QTreeWidgetItem *item, int column)
 {
-    if(item->parent()==ifTreeItem){
-        if(!ui->pushButton_2->isEnabled()&&!ui->pushButton_3->isEnabled())
-            ui->pushButton_2->setEnabled(true);
-        SNMPLib *snmp = new SNMPLib();
-        for(int i=item->childCount();i>=0;i--) item->removeChild(item->child(0));
-        if(snmp->init(ui->lineEdit->text(),ui->lineEdit_2->text()))
-        {
-            getInterfaceInfo(snmp,item,"Type","1.3.6.1.2.1.2.2.1.3.");
-            getInterfaceInfo(snmp,item,"Speed","1.3.6.1.2.1.2.2.1.5.");
-            getInterfaceInfo(snmp,item,"PhysicalAddress","1.3.6.1.2.1.2.2.1.6.");
-            getInterfaceInfo(snmp,item,"AdminStatus","1.3.6.1.2.1.2.2.1.7.");
-            getInterfaceInfo(snmp,item,"OperationStatus","1.3.6.1.2.1.2.2.1.8.");
-            getInterfaceInfo(snmp,item,"InBytes","1.3.6.1.2.1.2.2.1.10.");
-            getInterfaceInfo(snmp,item,"OutByte","1.3.6.1.2.1.2.2.1.16.");
-
-            snmp->closeSession();
-        }
-
-//        if(ifIndexMonitor == "")
-//        {
-//            ifIndexMonitor = item->text(0);
-//            snmpMonitor->init(ui->lineEdit->text(),ui->lineEdit_2->text());
-//            trafficThread = new TrafficThread(snmpMonitor,ifIndexMonitor);
-//        }
-//        else if(ifIndexMonitor != item->text(0))
-//        {
-//            if (trafficThread->isRunning()){
-//                trafficThread->quit();
-//                snmpMonitor->closeSession();
-//                ui->pushButton_2->setEnabled(false);
-//                ui->pushButton_3->setEnabled(false);
-//            }
-//            else {
-//                ifIndexMonitor = item->text(0);
-//                snmpMonitor->init(ui->lineEdit->text(),ui->lineEdit_2->text());
-//                trafficThread = new TrafficThread(snmpMonitor,ifIndexMonitor);
-//            }
-//        }
-    }
 }
 
-void SNMPMonitor::getInterfaceInfo(SNMPLib *snmp,QTreeWidgetItem *item,QString title,QString oid)
+void SNMPMonitor::getInterfaceInfo(QTreeWidgetItem *item,QString title,QString oid)
 {
     QString v;
     QTreeWidgetItem *itm = new QTreeWidgetItem(item);
@@ -190,5 +165,18 @@ void SNMPMonitor::getInterfaceInfo(SNMPLib *snmp,QTreeWidgetItem *item,QString t
         itm->setText(0,title);
         itm->setText(1,v);
         item->addChild(itm);
+    }
+}
+
+void SNMPMonitor::on_treeWidget_itemClicked(QTreeWidgetItem *item, int column)
+{
+    if(item->parent()==ifTreeItem){
+        if (item->text(1) != currentIfIndex){
+            currentIfIndex = item->text(1);
+            ui->pushButton_2->setEnabled(true);
+            ui->pushButton_3->setEnabled(false);
+            trafficThread->isPause = true;
+            trafficThread->isReset = true;
+        }
     }
 }

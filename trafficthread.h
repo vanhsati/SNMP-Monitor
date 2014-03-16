@@ -13,6 +13,8 @@ int outBytes;
 SNMPLib *snmp;
 QString ifIndex;
 int sleepTime;
+bool isPause;
+bool isReset;
 
 protected:
     virtual void run();

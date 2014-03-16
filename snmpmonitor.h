@@ -31,16 +31,18 @@ private slots:
 
     void on_treeWidget_itemDoubleClicked(QTreeWidgetItem *item, int column);
 
+    void on_treeWidget_itemClicked(QTreeWidgetItem *item, int column);
+
 private:
     Ui::SNMPMonitor *ui;
     NetworkWidget *networkWidget;
-    SNMPLib *snmpMonitor;
-    QString ifIndexMonitor;
+    SNMPLib *snmp;
+    QString currentIfIndex;
     TrafficThread *trafficThread;
     QDialog *configDialog;
-    void getDeviceInfo(SNMPLib *snmp,QString title,QString oid);
-    void getListInterface(SNMPLib *snmp,int ifNumber);
-    void getInterfaceInfo(SNMPLib *snmp,QTreeWidgetItem *item,QString title,QString oid);
+    void getDeviceInfo(QString title,QString oid);
+    void getListInterface(int ifNumber);
+    void getInterfaceInfo(QTreeWidgetItem *item,QString title,QString oid);
     QTreeWidgetItem *ifTreeItem;
     bool isConnectError;
 };

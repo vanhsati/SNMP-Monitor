@@ -11,7 +11,6 @@ SNMPLib::SNMPLib()
 
 bool SNMPLib::init(QString IP,QString community)
 {
-
     /*
      * Initialize the SNMP library
      */
@@ -22,6 +21,8 @@ bool SNMPLib::init(QString IP,QString community)
      */
     snmp_sess_init( &session );                   /* set up defaults */
     session.peername = IP.toLocal8Bit().data();
+
+    qDebug() << session.peername;
 
     /* set up the authentication parameters for talking to the server */
 
@@ -63,7 +64,8 @@ int status;
      */
     pdu = snmp_pdu_create(SNMP_MSG_GET);
     anOID_len = MAX_OID_LEN;
-    if (!read_objid(oid.toLocal8Bit().data(),anOID,&anOID_len)){
+    if (!snmp_parse_oid(oid.toLocal8Bit().data(), anOID, &anOID_len)){
+//    if (!read_objid(oid.toLocal8Bit().data(),anOID,&anOID_len)){
         snmp_perror(oid.toLocal8Bit().data());
         SOCK_CLEANUP;
         exit(1);
